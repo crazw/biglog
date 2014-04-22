@@ -3,7 +3,7 @@ biglog
 
 E-mail：craazw@gmail.com
 
-Blog：www.crazw.com
+Blog：http://www.crazw.com/
 
 ======
 
