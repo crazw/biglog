@@ -7,22 +7,24 @@ Blog：http://www.crazw.com/
 
 ======
 
-biglog集成：Awesant + Logstash + Elasticsearch +Kibana + Nginx
+biglog集成：
+      Awesant + Logstash + Elasticsearch +Kibana + Nginx
 
 ======
 安装方式：
-cd /tmp
 
-wget http://www.crazw.com/biglog_install/biglog.sh
+      cd /tmp
 
-chmod +x biglog.sh
+      wget http://www.crazw.com/biglog_install/biglog.sh
 
-./biglog.sh 2>&1 | tee /tmp/biglog_install.log
+      chmod +x biglog.sh
 
+      ./biglog.sh 2>&1 | tee /tmp/biglog_install.log
+   
 ======
 单机版（single）：
 
-Logstash-index（收集日志） + Elasticsearch（索引） + Kibana（前端） +Nginx（若已安装，只需配置对应vhost的server_name和root路径）
+      Logstash-index（收集日志）+ Elasticsearch（索引）+ Kibana（前端） +Nginx（若已安装，只需配置对应vhost的server_name和root路径）
 
 
 集群版（cluster）：
