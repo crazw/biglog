@@ -1,0 +1,214 @@
+
+补充：
+  1. logstash和elasticsearch的通信端口是：9300-9400
+  2. redis默认端口：6379
+  3. elasticsearch的端口：9200
+  4. syslog端口：514
+  5. redis单线程模型只能使用一个cpu，可以开启多个redis进程
+
+优秀文章：
+   * http://tinytub.github.io/logstash-install.html
+   * https://github.com/bloonix/awesant/blob/master/OutputRedisOptions.md
+   * https://github.com/bloonix/awesant
+   * 
+
+安装Awesant Log Shipper Agent端
+Awesant's Github：
+          https://github.com/bloonix/awesant
+          https://github.com/bloonix/awesant/blob/master/OutputRedisOptions.md
+
+1、添加源
+vi /etc/yum.repos.d/awesant.repo
+[awesant]              
+name=awesant
+baseurl=https://download.bloonix.de/centos/$releasever/$basearch
+gpgcheck=0     
+
+2、安装GPG Key
+wget https://download.bloonix.de/centos/RPM-GPG-KEY-Bloonix
+rpm --import RPM-GPG-KEY-Bloonix
+mv RPM-GPG-KEY-Bloonix /etc/pki/rpm-gpg/
+
+3、安装awesant
+yum install awesant
+
+4、编辑配置文件
+
+vi /etc/awesant/agent.conf
+
+5、配置自启动
+chkconfig --add awesant-agent
+chkconfig awesant-agent on
+
+service awesant-agent start
+
+
+安装Elasticsearch
+1、添加文件数限制
+vi /etc/security/limits.conf
+* soft unlimited
+* soft nofile 65535
+* hard nofile 65535
+elasticsearch soft memlock unlimited
+elasticsearch hard memlock unlimited
+elasticsearch soft rss unlimited
+elasticsearch hard rss unlimited
+elasticsearch soft stack unlimited
+elasticsearch hard stack unlimited
+elasticsearch soft nofile 256000
+elasticsearch hard nofile 256000
+2、安装依赖和工具
+yum install git java-1.7.0-openjdk
+3、下载
+cd /tmp
+wget https://download.elasticsearch.org/elasticsearch/elasticsearch/elasticsearch-1.3.2.tar.gz
+tar zxvf elasticsearch-1.3.2.tar.gz
+mv elasticsearch-1.3.2 /home/elasticsearch
+rm -rf *.gz
+4、复制服务
+cd /tmp
+git clone https://github.com/elasticsearch/elasticsearch-servicewrapper.git
+cd /tmp/elasticsearch-servicewrapper
+mv service /home/elasticsearch/bin/
+cd /tmp
+rm -rf elasticsearch-servicewrapper
+cd /home/elasticsearch/bin/service
+vim elasticsearch.conf
+编辑elasticsearch.conf（即：1 && 2 行），设置<home patch>为/home/elasticsearch，修改ES_HEAP_SIZE  (内存的60%)（单位是M）
+./elasticsearch install
+
+5、设置集群名称等信息
+sed -i -e 's|# cluster.name: elasticsearch|cluster.name: biglog|' /home/elasticsearch/config/elasticsearch.yml
+
+修改/home/elasticsearch/config/elasticsearch.yml：
+cluster.name: "biglog"
+node.name: "biglog1"
+node.master: true
+node.data: true
+discovery.zen.ping.unicast.hosts: ["10.18.157.3", "10.18.157.5"]
+path.data: /home/elasticsearch/data
+6、启动服务
+service elasticsearch start
+or执行：
+/home/elasticsearch/bin/elasticsearch -f
+7、安装es管理工具
+cd /home/elasticsearch/
+bin/plugin -install mobz/elasticsearch-head
+bin/plugin -install lmenezes/elasticsearch-kopf
+wget http://update.biglog.org/sense.tar.gz
+tar zxvf sense.tar.gz -C /home/elasticsearch/plugins/
+rm -rf sense.tar.gz
+
+安装Nginx && kibana(也可以不安装Nginx)
+1、安装依赖
+yum install zlib-devel make gcc 
+2、安装nginx
+cd /tmp
+wget http://nginx.org/download/nginx-1.4.5.tar.gz
+wget http://update.biglog.org/pcre-8.10.tar.gz
+tar zxvf nginx-1.4.5.tar.gz
+tar zxvf pcre-8.10.tar.gz
+groupadd www
+useradd -g www -s /bin/false -M www
+mkdir /usr/local/nginx
+cd /tmp/nginx-1.4.5
+./configure --user=www --group=www --prefix=/usr/local/nginx  --with-pcre=../pcre-8.10 --with-http_stub_status_module --with-http_gzip_static_module --without-mail_pop3_module --without-mail_smtp_module --without-mail_imap_module --without-http_uwsgi_module --without-http_scgi_module
+make && make install
+3、添加vhost 
+vim /usr/local/nginx/conf/nginx.conf
+配置root 和 servername
+eg：root   /home/wwwroot/biglog;
+sed -i "44s|.*|             root   /home/wwwroot/biglog;|" /usr/local/nginx/conf/nginx.conf
+4、添加chkconfig file
+wget -O /etc/init.d/nginx http://update.biglog.org/nginx
+chmod u+x /etc/init.d/nginx
+chkconfig --add nginx
+chkconfig --level 345 nginx on
+5、启动Nginx
+/etc/init.d/nginx restart
+6、下载kibana
+mkdir /home/wwwroot
+cd /home/wwwroot
+wget http://update.biglog.org/biglog.tar.gz
+tar zxvf biglog.tar.gz
+7、清理安装包
+rm -f biglog.tar.gz
+rm -rf  /tmp/nginx-1.4.5 /tmp/pcre-8.10
+
+
+安装Logstash-index端
+1、安装 （注意依赖是否安装：yum install java-1.7.0-openjdk）
+cd /home
+wget -O /home/logstash-1.4.2.tar.gz https://download.elasticsearch.org/logstash/logstash/logstash-1.4.2.tar.gz
+tar zxvf logstash-1.4.2.tar.gz
+rm -rf logstash-1.4.2.tar.gz
+mv logstash-1.4.2 logstash
+mkdir /etc/logstash
+mkdir /var/log/logstash
+2、在/etc/logstash文件夹下建立logstash配置文件：index.conf   #单机时去掉cluster字段，要是能内网更好！
+input {
+#       syslog {
+#               type => "syslog"
+#               port => 514
+#       }
+        generator {
+                type => "test"
+                message => "118.137.224.185 - - [14/Jul/2014:15:27:45 +0800] GET /usercenter/login_datason.jsp?callback=jQuery18305208275022450835_1405322856752&_=1405322858111 HTTP/1.1 200 71 http://www.zooboa.com/; Mozilla/5.0 (Windows NT 6.1; WOW64) AppleWebKit/537.1 (KHTML, like Gecko) Maxthon/3.0 Chrome/22.0.1229.79 Safari/537.1 0.006 0.006 ."
+                count => 100000000000000000000
+        }
+}
+
+output {
+        elasticsearch {
+                host => "107.189.158.81"
+                cluster => "crazw"
+        }
+#       stdout {
+#               codec => rubydebug
+#       }
+}
+###3、安装 contrib plugin  （新增的）
+cd /home/logstash
+bin/plugin install contrib
+3、制作启动文件
+wget -O /etc/init.d/logstash http://update.biglog.org/logstash
+chmod +x /etc/init.d/logstash
+chkconfig --add logstash
+chkconfig logstash on
+service logstash start
+安装redis(建议查看README)
+   * cd /tmp
+   * wget http://download.redis.io/releases/redis-2.8.14.tar.gz
+   * tar -zxvf redis-2.8.14.tar.gz
+   * cd redis-2.8.14
+   * make install
+   * meke test
+   * yum install tcl
+
+       
+可选：安装配置文件等
+   * cd utils/
+   * ./install_server.sh     
+    
+测试：
+
+  1. 服务端   
+        redis-cli -h 127.0.0.1 
+        netstat -ap | grep redis
+  2. 客户端
+        telnet xxx.xxx.xxx.xxx 6379 
+          
+Redis常用命令：
+   * redis-cli info
+   * redis-cli client list
+
+配置logstash：
+redis {
+                host => "107.167.183.27"
+                port => 6379
+                data_type => "list"
+                key => "biglog"
+        }
+
+
+
