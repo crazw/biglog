@@ -1,0 +1,21 @@
+淘宝的个性化搜索实时分析项目架构：timetunnel + hbase + storm + ups
+实时计算系统：s4、storm和puma 文章：http://www.searchtb.com/2012/09/introduction-to-storm.html
+全量数据处理使用的大多是鼎鼎大名的hadoop或者hive：作为一个批处理系统，hadoop以其吞吐量大、自动容错等优点，在海量数据处理上得到了广泛的使用
+实时分布式搜索引擎： Senseidb、 Solr和elasticsearch 文章： http://afoo.me/posts/2012-02-27-notes-on-senseidb-solr-and-elasticsearch.htm
+Cloudera及MapR等产品方式偏向于许可付费，而Hortonworks更像增值付费——提供了产品的开源版本，但是如果部署过大以致机构无法独立完成，那么可以寻求付费版帮助。
+Spark拥有Hadoop MapReduce所具有的优点；但不同于MapReduce的是Job中间输出结果可以保存在内存中，从而不再需要读写HDFS，因此Spark能更好地适用于数据挖掘与机器学习等需要迭代的map reduce的算法。
+Storm:简单的编程模型:类似于MapReduce降低了并行批处理复杂性，Storm降低了进行实时处理的复杂性。
+可以使用各种编程语言:默认支持Clojure、Java、Ruby和Python。要增加对其他语言的支持，只需实现一个简单的Storm通信协议
+容错性:Storm会管理工作进程和节点的故障。
+水平扩展:计算是在多个线程、进程和服务器之间并行进行的。
+可靠的消息处理:Storm保证每个消息至少能得到一次完整处理。任务失败时，它会负责从消息源重试消息。
+快速:系统的设计保证了消息能得到快速的处理，使用ØMQ作为其底层消息队列。
+本地模式:Storm有一个“本地模式”，可以在处理过程中完全模拟Storm集群。这让你可以快速进行开发和单元测试。
+hive（数据仓库工具）是基于Hadoop的一个数据仓库工具，可以将结构化的数据文件映射为一张数据库表，并提供简单的sql查询功能，可以将sql语句转换为MapReduce任务进行运行。 其优点是学习成本低，可以通过类SQL语句快速实现简单的MapReduce统计，不必开发专门的MapReduce应用，十分适合数据仓库的统计分析。
+RDD(基于内存的集群计算容错抽象)弹性分布式数据集（RDD，Resilient Distributed Datasets），它具备像MapReduce等数据流模型的容错特性，并且允许开发人员在大型集群上执行基于内存的计算。现有的数据流系统对两种应用的处理并不高效：一是迭代式算法，这在图应用和机器学习领域很常见；二是交互式数据挖掘工具。这两种情况下，将数据保存在内存中能够极大地提高性能。为了有效地实现容错，RDD提供了一种高度受限的共享内存，即RDD是只读的，并且只能通过其他RDD上的批量操作来创建。尽管如此，RDD仍然足以表示很多类型的计算，包括MapReduce和专用的迭代编程模型（如Pregel）等。我们实现的RDD在迭代计算方面比Hadoop快20多倍，同时还可以在5-7秒内交互式地查询1TB数据集。
+Shark基本上就是在Spark的框架基础上提供和Hive一样的H iveQL命令接口，为了最大程度的保持和Hive的兼容性，Shark使用了 Hive的API来实现query Parsing和 Logic Plan generation，最后的PhysicalPlan execution阶段用Spark代替Hadoop MapReduce。通过配置Shark参数，Shark可以自动在内存中缓存特定的RDD，实现数据重用，进而加快特定数据集的检索。同时，Shark通过UDF用户自定义函数实现特定的数据分析学习算法，使得SQL数据查询和运算分析能结合在一起，最大化RDD的重复使用。
+Spark Streaming构建在Spark上，一方面是因为Spark的低延迟执行引擎（100ms+）可以用于实时计算，另一方面相比基于Record的其它处理框架（如Storm），RDD数据集更容易做高效的容错处理。此外小批量处理的方式使得它可以同时兼容批量和实时数据处理的逻辑和算法。方便了一些需要历史数据和实时数据联合分析的特定应用场合。
+Bagel: Pregel on Spark，可以用Spark进行图计算，这是个非常有用的小项目。Bagel自带了一个例子，实现了Google的PageRank算法。
+ETL:  萃取（extract）、转置（transform）、加载（load）
+Splunk 支持的五种关联类型（关联 Splunk 中的事件有助于从机器数据中获得更丰富的分析和洞察力，为 IT 和业务提供更好的可见性和智能。）：基于时间的关联：用于根据时间、接近性或距离来确定关系。基于交易的关联：用于跟踪构成单次交易的一系列相关事件，进而评估时间长度、状态或进行其它分析。子搜索：用于获取其中一个搜索的结果并在其它搜索中使用这些结果。查找：用于关联 Splunk 以外的外部数据来源。连接：用于支持类似 SQL 的内部和外部连接。
+一般syslog,syslog-ng,rsyslog用于收集系统日志，scribe和fluentd用于收集业务日志，rsyslog和syslog-ng也可以收集业务日志，并可定制和过滤、筛选。
