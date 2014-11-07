@@ -1,0 +1,212 @@
+官方文档：
+http://nxlog.org/nxlog-docs/en/nxlog-reference-manual.pdf
+http://nxlog-ce.sourceforge.net/nxlog-docs/en/nxlog-reference-manual.html
+
+
+网络参考：
+
+wget http://downloads.sourceforge.net/project/nxlog-ce/nxlog-ce-2.3.1027.tar.gz
+tar zxvf nxlog-ce-2.3.1027.tar.gz
+cd nxlog-ce-2.3.1027/
+aptitude install libpcre3-dev libapr1-dev libssl-dev libexpat-dev make
+./configure
+make
+make install
+mkdir -p /usr/local/var/run/nxlog/
+mkdir /var/log/nxlog/
+mkdir -p /usr/local/var/spool/nxlog/
+mkdir /usr/local/etc/nxlog
+useradd nxlog
+cp /root/nxlog-ce-2.3.1027/packaging/debian/nxlog.init /etc/init.d/nxlog
+sed -i 's/\/usr\/bin\/nxlog/\/usr\/local\/bin\/nxlog/g' /etc/init.d/nxlog
+vim /usr/local/etc/nxlog/nxlog.conf
+bash -x /etc/init.d/nxlog start
+
+下载nxlog：
+wget http://softlayer-sng.dl.sourceforge.net/project/nxlog-ce/nxlog-ce-2.8.1248-1.x86_64.rpm
+wget http://jaist.dl.sourceforge.net/project/nxlog-ce/nxlog-ce-2.8.1248.tar.gz
+wget http://softlayer-sng.dl.sourceforge.net/project/nxlog-ce/nxlog-ce-2.8.1248.tar.gz
+
+
+源码安装：
+wget http://jaist.dl.sourceforge.net/project/nxlog-ce/nxlog-ce-2.8.1248.tar.gz
+tar zxvf nxlog-ce-2.8.1248.tar.gz
+cd nxlog-ce-2.8.1248
+yum install apr gcc apr-devel libdbi perl pcre-devel openssl-devel expat-devel
+./configure 
+make && make install
+
+useradd nxlog
+cp packaging/redhat/init /etc/init.d/nxlog
+chmod +x /etc/init.d/nxlog
+mkdir -p /usr/local/etc/nxlog/
+cp packaging/redhat/nxlog.conf /usr/local/etc/nxlog
+mkdir -p /var/log/nxlog/
+mkdir -p /usr/local/var/run/nxlog/
+
+
+rpm包安装：
+
+下载rpm包：
+wget http://jaist.dl.sourceforge.net/project/nxlog-ce/nxlog-ce-2.8.1248-1.x86_64.rpm
+
+rpm安装：
+rpm -ivh nxlog-ce-2.8.1248-1.x86_64.rpm
+
+根据需要的依赖直接yum安装即可：
+yum install apr
+yum install libdbi
+yum install perl
+rpm -ivh nxlog-ce-2.8.1248-1.x86_64.rpm
+
+启动nxlog：
+/etc/init.d/nxlog start
+
+配置文件：
+/etc/nxlog.conf
+
+
+nxlog的配置文件：
+
+案例一：
+########################################
+# Global directives                    #
+########################################
+User nxlog
+Group nxlog
+
+LogFile /var/log/messages
+LogLevel INFO
+
+########################################
+# Modules                              #
+########################################
+
+# NXlog syslog extension activation (needed to receive syslog messages)
+<Extension _syslog>
+    Module      xm_syslog
+</Extension>
+
+# NXlog JSON extension activation (needed to forward messages to Logstash)
+<Extension json>
+    Module      xm_json
+</Extension>
+
+# NXlog input to receive UDP syslog messages on standard UDP port.
+# Note the parse syslog input to json exec.
+<Input in_udp>
+    Module      im_udp
+    Host        0.0.0.0
+    Port        514
+    Exec        parse_syslog(); to_json();
+</Input>
+
+########################################
+# Routes                               #
+########################################
+
+# The buffer needed to NOT loose events when Logstash restarts
+<Processor buffer_udp>
+    Module      pm_buffer
+    # 1Mb buffer
+    MaxSize 1024
+    Type Mem
+    # warn at 512k
+    WarnLimit 512
+</Processor>
+
+# NXlog output to forward everything to Logstash listening on Localhost port 5140.
+<Output out_tcp>
+    Module      om_tcp
+    Port        5140
+    Host        localhost
+</Output>
+
+# Let's tie all pieces together with a NXlog route
+<Route udp>
+    Path        in_udp => buffer_udp => out_tcp
+</Route>
+
+logstash的配置：
+
+input {
+  tcp {
+    port => 5140
+    type => "json-tcp"
+    format => "json"
+  }
+}
+
+案例二：
+https://github.com/lamby/pkg-nxlog-ce/blob/master/debian/nxlog.conf
+
+案例三：
+https://gist.github.com/stonith/3172872
+
+
+案例四：
+define BASEDIR /var/log
+define IGNORE_DEBUG if $raw_event =~ /debug/ drop();
+
+<Input messages>
+    Module      im_file
+    File        '%BASEDIR%/messages'
+</Input>
+
+<Input proftpd>
+    Module      im_file
+    File        '%BASEDIR%/proftpd.log'
+    Exec        %IGNORE_DEBUG%
+</Input>
+
+案例五：
+<Input in>
+    Module  im_file
+    File    "tmp/input"
+</Input>
+
+<Output out>
+    Module  om_tcp
+    Port    2345
+    Host    localhost
+    OutputType  Binary
+</Output>
+
+<Route 1>
+    Path    in => out
+</Route>
+
+案例五：
+RPM安装后的配置文件为/etc/nxlog.conf 编译的地址为/usr/local/etc/nxlog.conf
+<Extension syslog>
+   Module xm_syslog
+</Extension>
+## 定义要发送的日志文件路径，多个路径用多个Input进行读取
+<Input das2_log>
+   Module   im_file
+   File     "/var/log/*.log"
+   SavePos  TRUE
+   RenameCheck True
+  
+   ##定义日志格式，tag1和tag2根据情况进行添加和定义，raw_event是原始日志
+   Exec $raw_event = "tag1 " + "tag2 " + $raw_event;
+</Input>
+<Input cas2_log>
+   Module   im_file
+   File     "/var/log/*.log"
+   SavePos  TRUE
+   RenameCheck True
+   Exec $raw_event = "tag3 " + "tag4 " + $raw_event;
+</Input>
+ 
+<Output out1>
+   Module om_udp
+   Host 10.24.42.5
+   Port 514
+</Output>
+ 
+ ##定义执行日志发送，多个Input对应1个out
+<Route 1>
+   Path das2_log, cas2_log => out1
+</Route>
+ 
