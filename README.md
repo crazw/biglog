@@ -1,4 +1,4 @@
-BIGLog说明文档
+说明文档
 ======
 
 E-mail：craazw@gmail.com
@@ -7,19 +7,10 @@ Blog：http://www.crazw.com/
 
 ======
 
-BIGLog集成：
+ELK集成：
 
       Awesant + Logstash + Elasticsearch +Kibana + Nginx ＋ Redis
 
-======
-安装方式：
-      BIGLog单机版的服务器端一键部署包，适用于Centos 6.x 64位：
-
-      cd /tmp
-      wget http://update.biglog.org/biglog_standalone.sh
-      chmod +x biglog_standalone.sh
-      sh biglog_standalone.sh 2>&1 | tee /tmp/biglog_install.log
-      注：装完请手动reboot下服务器。
 
    
 ======
